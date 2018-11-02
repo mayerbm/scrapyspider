@@ -26,7 +26,7 @@ pip freeze > requirements.txt
 
 import scrapy
 import re
-from scrapyspider.items import NewHouseItem, EsfHouseItem
+from scrapyspider.items import NewHouseItem, EsfHouseItem, EsfHouseItem02
 from scrapy.xlib.pydispatch import dispatcher
 from scrapy import signals
 from scrapyspider.utils.common import get_md5
@@ -48,7 +48,7 @@ class scrapyspider(scrapy.Spider):
         super().__init__()
         self.failed_urls = []
 
-        # 分发器做信号映射：当signals.spider_closed信号发生时调用stats_set_value()函数
+        # 分发器做信号映射：当signals.spider_closed信号发生时调用stats.set_value()函数
         dispatcher.connect(receiver=self.spider_closed, signal=signals.spider_closed)
 
     # 关闭spider时的逻辑处理
@@ -94,72 +94,37 @@ class scrapyspider(scrapy.Spider):
                     new_link = "http://" + pinyin + ".newhouse.fang.com/house/s/"
                     # 该城市二手房链接
                     esf_link = "http://" + pinyin + ".esf.fang.com/"
-
+                print(esf_link)
                 # 发送新的请求链接(meta参数用于在不同请求之间传递数据,dict类型)
                 yield scrapy.Request(url=new_link, callback=self.parse_new, meta={"info": (province, city)})
                 # yield scrapy.Request(url=esf_link, callback=self.parse_esf, meta={"info": (province, city)})
-                break
-            break
+                # break
+            # break
 
     # 解析新房数据
     def parse_new(self, response):
-        item = NewHouseItem()
         # 接收request请求传递过来meta参数信息
         province, city = response.meta.get("info")
         # 获取当前页面小区列表
         communitys = response.xpath('//div[@class="nlc_details"]')
         # 遍历所有小区
         for each in communitys:
-            # 小区名字
-            community = each.xpath('.//div[@class="nlcd_name"]/a/text()').get().strip()
-            # 小区链接
-            url = each.xpath('.//div[@class="nlcd_name"]/a/@href').get()
-            # 价格
-            price_text = "".join(each.xpath('.//div[@class="nhouse_price"]//text()').getall()).split()
-            if price_text:
-                price = price_text[0]
-            else:
-                price = "优惠价格"
-            # 户型和面积
-            rooms_text = "".join("".join(each.xpath('.//div[contains(@class, "house_type")]//text()').getall()).split())
-            if "－" in rooms_text:
-                rooms, area = rooms_text.split("－")[0], rooms_text.split("－")[1]
-            else:
-                rooms, area = "", ""
-            # 所在区
-            district = each.xpath('.//div[@class="address"]//span/text()').get()
-            if district:
-                district = district.strip()[1:-1]
-            # 详细地址
-            address = each.xpath('.//div[@class="address"]/a/@title').get()
-            # 是否在售
-            sale = each.xpath('.//div[contains(@class, "fangyuan")]/span/text()').get()
-
-            item['id'] = get_md5(url)  # 生成随机数id作为主键
-            item['province'] = province
-            item['city'] = city
-            item['community'] = community
-            item['url'] = url
-            item['price'] = price
-            item['rooms'] = rooms
-            item['area'] = area
-            item['district'] = district
-            item['address'] = address
-            item['sale'] = sale
-
-            # 通过ItemLoader加载item
-            # loader = MyItemLoader(item=NewHouseItem, response=response)
-            # loader.add_value('id', get_md5(response.url))
-            # loader.add_value('province', province)
-            # loader.add_value('city', city)
-            # loader.add_xpath('community', './/div[@class="nlcd_name"]/a/text()')
-            # loader.add_xpath('url', './/div[@class="nlcd_name"]/a/@href')
-            # loader.add_xpath('price', './/div[@class="nhouse_price"]//text()')
-            # loader.add_xpath('', '')
-            # loader.add_xpath('', '')
-            # loader.add_xpath('', '')
-            # item = loader.load_item()
-
+            # 过滤已售完房源
+            if each.xpath('.//div[contains(@class, "fangyuan")]/span/text()').get() == "售完":
+                continue
+            # 使用ItemLoader填充item数据(根据具体情况接收selector/response)
+            loader = MyItemLoader(item=NewHouseItem(), selector=each)
+            loader.add_value('id', get_md5())
+            loader.add_value('province', province)
+            loader.add_value('city', city)
+            loader.add_xpath('community', './/div[@class="nlcd_name"]/a/text()')
+            loader.add_xpath('url', './/div[@class="nlcd_name"]/a/@href')
+            loader.add_xpath('price', './/div[@class="nhouse_price"]')
+            loader.add_xpath('area', './/div[contains(@class, "house_type")]')
+            loader.add_xpath('district', './/div[@class="address"]/a')
+            loader.add_xpath('address', './/div[@class="address"]/a/@title')
+            loader.add_xpath('sale', './/div[contains(@class, "fangyuan")]/span/text()')
+            item = loader.load_item()
             yield item
 
         # 获取当前页码和尾页页码
@@ -171,57 +136,34 @@ class scrapyspider(scrapy.Spider):
             if current_page == "1":
                 next_page = response.url + "b92"
             else:
-                next_page = "/".join(response.url.split("/")[:-2]) + "/" + response.url.split("/")[-2][0:2] + str(int(response.url.split("/")[-2][2:])+1)
+                next_page = "/".join(response.url.split("/")[:-2]) + "/" + response.url.split("/")[-2][0:2] + str(
+                    int(response.url.split("/")[-2][2:]) + 1)
             # 继续发送新的请求
             yield scrapy.Request(url=next_page, callback=self.parse_new, meta={"info": (province, city)})
 
     # 解析二手房首页数据
     def parse_esf(self, response):
-        # 创建item对象
-        item = EsfHouseItem()
         # 接收request请求传递过来的meta参数信息
         province, city = response.meta.get("info")
         # 获取当前页面房源列表
         houses = response.xpath('//div[@class="houseList"]/dl')
-        # 遍历
+        # 遍历所有房源
         for each in houses:
-            # 小区名字
-            community = each.xpath('.//p[@class="mt10"]/a/span/text()').get()
-            # 地址
-            address = each.xpath('.//p[@class="mt10"]/span/text()').get()
-            # 标题
-            title = each.xpath('.//p[@class="title"]/a/text()').get()
-            # 几居室
-            mt12 = each.xpath('.//p[@class="mt12"]/text()').getall()
-            if mt12:
-                rooms = "".join(mt12).split()[0]
-                # 楼层
-                floor = "".join(mt12).split()[1]
-                # 朝向
-                toward = "".join(mt12).split()[1]
-                # 年代
-                year = "".join(mt12).split()[1]
-            else:
-                rooms, floor, toward, year = "", "", "", ""
-            # 面积
-            area = "-".join(each.xpath('.//div[contains(@class, "area")]/p/text()').getall())
-            # 价格
-            price = "".join(each.xpath('.//p[@class="mt5 alignR"]/span/text()').getall())
-            # 单价
-            unit = "/".join(each.xpath('.//p[contains(@class, "danjia")]/text()').getall())
-
-            item['province'] = province
-            item['city'] = city
-            item['community'] = community
-            item['address'] = address
-            item['title'] = title
-            item['rooms'] = rooms
-            item['floor'] = floor
-            item['toward'] = toward
-            item['year'] = year
-            item['area'] = area
-            item['price'] = price
-            item['unit'] = unit
+            # 使用ItemLoader填充item数据(根据具体情况接收response/selector)
+            loader = MyItemLoader(item=EsfHouseItem(), selector=each)
+            loader.add_value('province', province)
+            loader.add_value('city', city)
+            loader.add_xpath('community', './/p[@class="mt10"]/a/span/text()')
+            loader.add_xpath('title', './/p[@class="title"]/a/text()')
+            loader.add_xpath('address', './/p[@class="mt10"]/span/text()')
+            loader.add_xpath('rooms', './/p[@class="mt12"]')
+            loader.add_xpath('floor', './/p[@class="mt12"]')
+            loader.add_xpath('toward', './/p[@class="mt12"]')
+            loader.add_xpath('year', './/p[@class="mt12"]')
+            loader.add_xpath('area', './/div[contains(@class, "area")]')
+            loader.add_xpath('price', './/p[@class="mt5 alignR"]')
+            loader.add_xpath('unit', './/p[contains(@class, "danjia")]')
+            item = loader.load_item()
             yield item
 
         # 判断是否有下一页
@@ -229,58 +171,34 @@ class scrapyspider(scrapy.Spider):
         # 继续发送新的请求
         if next_url:
             # 这个网站做的很刁钻：二手房首页和其他页的页面展示还不一样,需调用新的函数解析
-            yield scrapy.Request(url=response.urljoin(next_url), callback=self.parse_esf_next, meta={"info": (province, city)})
+            yield scrapy.Request(url=response.urljoin(next_url), callback=self.parse_esf02, meta={"info": (province, city)})
 
     # 解析二手房非首页数据
-    def parse_esf_next(self, response):
-        # 创建item对象
-        item = EsfHouseItem()
+    def parse_esf02(self, response):
         # 接收request请求传递过来的meta参数信息
         province, city = response.meta.get("info")
         # 获取当前页面房源列表
         houses = response.xpath('//div[contains(@class, "shop_list")]/dl')
         for each in houses:
-            # 小区名字
-            community = each.xpath('.//p[@class="add_shop"]/a/@title').get()
-            # 地址
-            address = each.xpath('.//p[@class="add_shop"]/p/span/text()').get()
-            # 标题
-            title = each.xpath('.//span[@class="tit_shop"]/text()').get()
-            # 几居室
-            tel_shop = "".join(each.xpath('.//p[@class="tel_shop"]/text()').getall()).split()
-            if tel_shop:
-                rooms = tel_shop[0]
-                # 面积
-                area = tel_shop[1]
-                # 楼层
-                floor = tel_shop[1]
-                # 朝向
-                toward = tel_shop[1]
-                # 年代
-                year = tel_shop[1]
-            else:
-                rooms, area, floor, toward, year = "", "", "", "", ""
-            # 价格
-            price = each.xpath('.//dd[@class="price_right"]/span[1]/b/text()').get() + each.xpath('.//dd[@class="price_right"]/span[1]/text()').get()
-            # 单价
-            unit = each.xpath('.//dd[@class="price_right"]/span[2]/text()').get()
-
-            item['province'] = province
-            item['city'] = city
-            item['community'] = community
-            item['address'] = address
-            item['title'] = title
-            item['rooms'] = rooms
-            item['floor'] = floor
-            item['toward'] = toward
-            item['year'] = year
-            item['area'] = area
-            item['price'] = price
-            item['unit'] = unit
+            # 使用ItemLoader填充item数据(根据具体情况接收response/selector)
+            loader = MyItemLoader(item=EsfHouseItem02(), selector=each)
+            loader.add_value('province', province)
+            loader.add_value('city', city)
+            loader.add_xpath('community', './/p[@class="add_shop"]/a/@title')
+            loader.add_xpath('title', './/span[@class="tit_shop"]/text()')
+            loader.add_xpath('address', './/p[@class="add_shop"]/span/text()')
+            loader.add_xpath('rooms', './/p[@class="tel_shop"]')
+            loader.add_xpath('area', './/p[@class="tel_shop"]')
+            loader.add_xpath('floor', './/p[@class="tel_shop"]')
+            loader.add_xpath('toward', './/p[@class="tel_shop"]')
+            loader.add_xpath('year', './/p[@class="tel_shop"]')
+            loader.add_xpath('price', './/dd[@class="price_right"]/span[1]')
+            loader.add_xpath('unit', './/dd[@class="price_right"]/span[2]')
+            item = loader.load_item()
             yield item
 
         # 判断是否有下一页
         next_url = response.xpath('//div[@class="page_al"]/p[3]/a/@href').get()
         # 继续发送新的请求
         if next_url:
-            yield scrapy.Request(url=response.urljoin(next_url), callback=self.parse_esf_next, meta={"info": (province, city)})
+            yield scrapy.Request(url=response.urljoin(next_url), callback=self.parse_esf02, meta={"info": (province, city)})

@@ -6,7 +6,7 @@
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
 import pymysql
-from scrapyspider.items import NewHouseItem, EsfHouseItem, HospitalItem, DoctorItem
+from scrapyspider.items import NewHouseItem, EsfHouseItem, EsfHouseItem02, HospitalItem, DoctorItem
 from twisted.enterprise import adbapi
 import json
 
@@ -35,10 +35,11 @@ class ScrapyspiderPipeline(object):
     def do_insert(self, cursor, item):
         value = []
         if item.__class__ == NewHouseItem:
-            fields1 = ["id", "community", "url", "province", "city", "district", "address", "price", "rooms", "area", "sale"]
+            fields1 = ["id", "province", "city", "community", "url", "price", "area", "district", "address", "sale"]
             for field in fields1:
                 value.append(item[field])
-        elif item.__class__ == EsfHouseItem:
+        # elif item.__class__.startswith("EsfHouseItem"):
+        elif item.__class__ == EsfHouseItem or EsfHouseItem02:
             fields2 = ["community", "title", "province", "city", "address", "rooms", "floor", "toward", "year", "area", "price", "unit"]
             for field in fields2:
                 value.append(item[field])
@@ -46,9 +47,9 @@ class ScrapyspiderPipeline(object):
             pass
 
         try:
-            sql1 = "replace into newhouse values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            sql1 = "replace into newhouse values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             sql2 = "replace into esfhouse values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-            if len(value) == 11:
+            if len(value) == 10:
                 cursor.execute(sql1, value)
             elif len(value) == 12:
                 cursor.execute(sql2, value)

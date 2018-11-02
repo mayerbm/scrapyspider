@@ -1,13 +1,12 @@
 import hashlib
+import random
 
 
-def get_md5(url):
-    if isinstance(url, str):
-        url = url.encode('utf-8')
+def get_md5():
     m = hashlib.md5()
-    m.update(url)
-    return m.hexdigest()  # dab19e82e1f9a681ee73346d3e7a575e
+    m.update(str(random.random()).encode('utf-8'))
+    return m.hexdigest()
 
 
 if __name__ == '__main__':
-    get_md5("www.baidu.com")
+    print(get_md5())  # 1c8f78b505c3059098f1202e88834290
