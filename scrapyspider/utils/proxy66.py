@@ -21,7 +21,7 @@ def crawl01():
 
 
 def crawl02():
-    # 该网站点2小时刷新一次(差)
+    # 该站点2小时刷新一次(差)
     values = []
     for i in range(1, 10):
         url = "http://www.66ip.cn/" + str(i) + ".html"

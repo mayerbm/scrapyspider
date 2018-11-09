@@ -98,8 +98,8 @@ class scrapyspider(scrapy.Spider):
                 # 发送新的请求链接(meta参数用于在不同请求之间传递数据,dict类型)
                 yield scrapy.Request(url=new_link, callback=self.parse_new, meta={"info": (province, city)})
                 # yield scrapy.Request(url=esf_link, callback=self.parse_esf, meta={"info": (province, city)})
-                # break
-            # break
+                break
+            break
 
     # 解析新房数据
     def parse_new(self, response):

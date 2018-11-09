@@ -57,7 +57,7 @@ DEFAULT_REQUEST_HEADERS = {
 DOWNLOADER_MIDDLEWARES = {
    # 'scrapyspider.middlewares.ScrapyspiderDownloaderMiddleware': 543,
    'scrapyspider.middlewares.RandomUserAgent': 100,
-   'scrapyspider.middlewares.RandomProxy': 200,
+   # 'scrapyspider.middlewares.RandomProxy': 200,
    # 'scrapyspider.middlewares.SeleniumMiddleware': 300,
 }
 
@@ -70,13 +70,12 @@ DOWNLOADER_MIDDLEWARES = {
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   # 'scrapyspider.pipelines.ItcastPipeline': 300,
    # 'scrapyspider.pipelines.TencentspiderPipeline': 300,
    # 'scrapyspider.pipelines.SunwzspiderPipeline': 300,
    # 'scrapyspider.pipelines.JianshuspiderPipeline': 300,
    # 'scrapyspider.pipelines.JianshuTwistedspiderPipline': 300,
    # 'scrapyspider.pipelines.SoyoungspiderPipeline': 300,
-   'scrapyspider.pipelines.ScrapyspiderPipeline': 300,
+   'scrapyspider.pipelines.SoufangspiderPipeline': 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

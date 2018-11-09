@@ -11,7 +11,7 @@ from twisted.enterprise import adbapi
 import json
 
 
-class ScrapyspiderPipeline(object):
+class SoufangspiderPipeline(object):
     def __init__(self):
 
         config = {

@@ -10,6 +10,15 @@ config = {
     "charset": "utf8",
 }
 
+# config = {
+#     "host": "10.9.157.245",
+#     "port": 3306,
+#     "user": "root",
+#     "password": "ldaI00Uivwp",
+#     "db": "test",
+#     "charset": "utf8"
+# }
+
 
 def insert(values):
     conn = pymysql.connect(**config)

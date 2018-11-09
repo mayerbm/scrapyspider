@@ -17,7 +17,7 @@ Join()：合并多个结果
 TakeFirst(): 返回第一个非空/None值
 总结：MapCompose()适合input_processor,其它的适合output_processor
 
-数据流向(debug)：add_xpath(调用input_processor处理,数据暂存在ItemLoader) --> load_item(调用output_processor处理) --> item
+数据流向(debug)：add_xpath(会调用input_processor处理,数据暂存在ItemLoader中) --> load_item(会调用output_processor处理) --> item
 """
 
 import scrapy
@@ -31,7 +31,9 @@ from w3lib.html import remove_tags
 
 # 自定义ItemLoader类
 class MyItemLoader(ItemLoader):
-    # 默认输出列表的第一个非空/None值,也可以继续在field里重新定义output_processor
+    # add_xpath()获取Field填充数据后设置默认input_processor给字符串去空格
+    default_input_processor = MapCompose(lambda s: s.strip())
+    # load_item()传值给Item后设置默认output_processor输出列表的第一个非空/None值
     default_output_processor = TakeFirst()
 
 
@@ -45,11 +47,12 @@ def deal_district(value):
 
 
 class NewHouseItem(scrapy.Item):
+    # 构建Item模型(类似ORM对象关系映射)：用来定义结构化数据字段,保存爬取到的数据,类似python的dict
     id = scrapy.Field()
     province = scrapy.Field()
     city = scrapy.Field()
     community = scrapy.Field(
-        input_processor=MapCompose(str.strip)
+        # input_processor=MapCompose(str.strip)
     )
     url = scrapy.Field()
     price = scrapy.Field(
@@ -256,8 +259,3 @@ class TencentspiderItem(scrapy.Item):
     publishTime = scrapy.Field()
 
 
-class ItacastItem(scrapy.Item):
-    # 构建Item模型(类似ORM对象关系映射)：用来定义结构化数据字段，保存爬取到的数据，类似python的dict
-    name = scrapy.Field()  # 姓名
-    title = scrapy.Field()  # 职称
-    info = scrapy.Field()  # 简介
